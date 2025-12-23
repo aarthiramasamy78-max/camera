@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ProSlider | Modern Image Carousel</title>
+    <style>
+        :root {
+            --slider-height: 500px;
+            --transition-speed: 0.6s;
+            --accent-color: #ffffff;
+            --dot-size: 12px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a1a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+
+        /* SLIDER CONTAINER */
+        .slider-container {
+            position: relative;
+            width: 90%;
+            max-width: 1000px;
+            height: var(--slider-height);
+            margin: auto;
+            overflow: hidden;
+            border-radius: 15px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+        }
+
+        /* TRACK (The moving part) */
+        .slider-track {
+            display: flex;
+            height: 100%;
+            transition: transform var(--transition-speed) cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .slide {
+            min-width: 100%;
+            height: 100%;
+            position: relative;
+        }
+
+        .slide img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+
+        /* CAPTION OVERLAY */
+        .caption {
+            position: absolute;
+            bottom: 40px;
+            left: 40px;
+            color: white;
+            background: rgba(0,0,0,0.4);
+            padding: 15px 25px;
+            border-left: 5px solid var(--accent-color);
+            backdrop-filter: blur(5px);
+        }
+
+        /* NAVIGATION BUTTONS */
+        .nav-btn {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            padding: 20px 15px;
+            cursor: pointer;
+            font-size: 24px;
+            transition: 0.3s;
+            z-index: 10;
+        }
+
+        .nav-btn:hover { background: rgba(255,255,255,0.4); }
+        .prev-btn { left: 0; border-radius: 0 5px 5px 0; }
+        .next-btn { right: 0; border-radius: 5px 0 0 5px; }
+
+        /* PAGINATION DOTS */
+        .dots-container {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 10px;
+        }
+
+        .dot {
+            width: var(--dot-size);
+            height: var(--dot-size);
+            border-radius: 50%;
+            background: rgba(255,255,255,0.3);
+            cursor: pointer;
+            transition: 0.3s;
+        }
+
+        .dot.active {
+            background: var(--accent-color);
+            transform: scale(1.3);
+        }
+
+        @media (max-width: 768px) {
+            :root { --slider-height: 300px; }
+            .caption { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="slider-container" id="main-slider">
+        <div class="slider-track">
+            <div class="slide">
+                <img src="https://images.unsplash.com/photo-1470071459604-3b5ec3a7fe05?auto=format&fit=crop&w=1000&q=80" alt="Nature 1">
+                <div class="caption"><h2>Primal Wilderness</h2><p>Experience the untouched beauty.</p></div>
+            </div>
+            <div class="slide">
+                <img src="https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=1000&q=80" alt="Nature 2">
+                <div class="caption"><h2>Deep Forests</h2><p>Find peace among the trees.</p></div>
+            </div>
+            <div class="slide">
+                <img src="https://images.unsplash.com/photo-1501854140801-50d01698950b?auto=format&fit=crop&w=1000&q=80" alt="Nature 3">
+                <div class="caption"><h2>Mountain Peaks</h2><p>Reach new heights today.</p></div>
+            </div>
+        </div>
+
+        <button class="nav-btn prev-btn" aria-label="Previous Slide">❮</button>
+        <button class="nav-btn next-btn" aria-label="Next Slide">❯</button>
+
+        <div class="dots-container"></div>
+    </div>
+
+    <script>
+        class ImageSlider {
+            constructor(containerId, autoDelay = 5000) {
+                this.container = document.getElementById(containerId);
+                this.track = this.container.querySelector('.slider-track');
+                this.slides = Array.from(this.track.children);
+                this.nextBtn = this.container.querySelector('.next-btn');
+                this.prevBtn = this.container.querySelector('.prev-btn');
+                this.dotsContainer = this.container.querySelector('.dots-container');
+                
+                this.currentIndex = 0;
+                this.autoDelay = autoDelay;
+                this.autoPlayTimer = null;
+
+                this.init();
+            }
+
+            init() {
+                // Create dots based on slide count
+                this.slides.forEach((_, i) => {
+                    const dot = document.createElement('div');
+                    dot.classList.add('dot');
+                    if (i === 0) dot.classList.add('active');
+                    dot.addEventListener('click', () => this.goToSlide(i));
+                    this.dotsContainer.appendChild(dot);
+                });
+
+                // Event Listeners
+                this.nextBtn.addEventListener('click', () => this.nextSlide());
+                this.prevBtn.addEventListener('click', () => this.prevSlide());
+                
+                // Pause on Hover (UX Best Practice)
+                this.container.addEventListener('mouseenter', () => this.stopAutoPlay());
+                this.container.addEventListener('mouseleave', () => this.startAutoPlay());
+
+                this.startAutoPlay();
+            }
+
+            updateSlider() {
+                this.track.style.transform = `translateX(-${this.currentIndex * 100}%)`;
+                
+                // Update Dots
+                const dots = Array.from(this.dotsContainer.children);
+                dots.forEach((dot, i) => {
+                    dot.classList.toggle('active', i === this.currentIndex);
+                });
+            }
+
+            nextSlide() {
+                this.currentIndex = (this.currentIndex + 1) % this.slides.length;
+                this.updateSlider();
+            }
+
+            prevSlide() {
+                this.currentIndex = (this.currentIndex - 1 + this.slides.length) % this.slides.length;
+                this.updateSlider();
+            }
+
+            goToSlide(index) {
+                this.currentIndex = index;
+                this.updateSlider();
+            }
+
+            startAutoPlay() {
+                this.stopAutoPlay(); // Prevent multiple timers
+                this.autoPlayTimer = setInterval(() => this.nextSlide(), this.autoDelay);
+            }
+
+            stopAutoPlay() {
+                clearInterval(this.autoPlayTimer);
+            }
+        }
+
+        // Instantiate the slider
+        const mySlider = new ImageSlider('main-slider', 4000);
+    </script>
+</body>
+</html>
